@@ -28,7 +28,7 @@ from scipy import interpolate
 from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit 
 from matplotlib.backends.backend_pdf import PdfPages
-
+from con_fit_iterative import *
 
 def lam2vel(wavelength,ion_w):
     zlambda = (wavelength-ion_w)/ion_w
@@ -56,10 +56,10 @@ def ext_coeff(lamb):
     return(ext_lamb)
 
 def myfunct(wave, a , b):
-    return a*wave**(b)
+    return a*ext_coeff(wave)*wave**(b)
 
 
-def compute_alpha(wl, spec, ivar, wav_range, per_value=[25,75]):
+def compute_alpha(wl, spec, ivar, wav_range, per_value=[10,90]):
     # print 'Routine begins'
     spec[np.isnan(spec)] = 0
     ivar[np.isnan(ivar)] = 0
@@ -67,7 +67,10 @@ def compute_alpha(wl, spec, ivar, wav_range, per_value=[25,75]):
     wavelength, spectra, invar = np.array([]), np.array([]), np.array([])
     #plt.plot(wl,spec)
     for j in range(len(wav_range)):
+        #print wav_range[j]
+        #print min(wl),max(wl)
         temp = np.where((wl > wav_range[j][0]) & (wl < wav_range[j][1]))[0]
+        #print wl[temp],len(spec),len(wl),spec[temp],ivar[temp]
         tempspec, tempivar  = spec[temp], ivar[temp]
         #print tempspec
         print len(tempspec)
@@ -82,10 +85,11 @@ def compute_alpha(wl, spec, ivar, wav_range, per_value=[25,75]):
         invar = np.concatenate((invar, tempivar[blah]))
     print 'Debug',len(wavelength)
     p0=[1.0,1.0]
+    param_bounds = ([0,-3],[np.inf,3])
     try:
         #plt.plot(wavelength,spectra)
         #plt.show()
-        popt, pcov = curve_fit(myfunct, wavelength, spectra, p0, sigma=1.0/np.sqrt(invar))
+        popt, pcov = curve_fit(myfunct, wavelength, spectra, p0, sigma=1.0/np.sqrt(invar),bounds=param_bounds)
     except (RuntimeError, TypeError):
         AMP, ALPHA, CHISQ, DOF = np.nan, np.nan, np.nan, np.nan
     else:
@@ -140,16 +144,16 @@ def fitPowerlaw(wave,flux,weight,scale = 1, amp=1,index=1):
     print 'Reduced Chi Square : {0}  Number of points: {1}'.format(rchi2,len(xdata))
     return (popt,pcov)   
 
-def maskOutliers(wave,flux,weight,popt):
-    model = powerlawFunc(wave,popt[0],popt[1],popt[2])
+def maskOutliers(wave,flux,weight,amp,alpha):
+    model = myfunct(wave,amp,alpha)
     std =np.std(flux[weight > 0])
     fluxdiff = flux - model
     ww = np.where (np.abs(fluxdiff) > 3*std)
-    nwave = np.delete(wave,ww)
-    nflux = np.delete(flux,ww)
-    nweight = np.delete(weight,ww)
+    #nwave = np.delete(wave,ww)
+    #nflux = np.delete(flux,ww)
+    weight[ww] = 0#np.delete(weight,ww)
     
-    return nwave,nflux,nweight
+    return wave,flux,weight
 
 def savitzky_golay(y, window_size, order, deriv=0, rate=1):
     r"""Smooth (and optionally differentiate) data with a Savitzky-Golay filter.
@@ -228,7 +232,7 @@ def savitzky_golay(y, window_size, order, deriv=0, rate=1):
 
 
 def contWave(wave):
-    linefree_regions = [(1250,1350),(1700,1800),(1950,2200),(2650,2710),(2950,3700),(3950,4050)]
+    linefree_regions = [(1280,1350),(1700,1800),(1950,2200),(2650,2710),(2950,3700),(3950,4050)]
     finalcond = False
     for lfr in linefree_regions:
         cond = ((wave >= lfr[0]) & (wave <= lfr[1]))
@@ -236,12 +240,26 @@ def contWave(wave):
     indices = np.where(finalcond)
     return indices
 
+
+def minmax(vec):
+    return min(vec),max(vec)
+
+#version I = no maskOutliers percentile 25 75
+#version II = with maskOutliers percentile 10 90
+#version III = clipped wavelengths to same bounds; to deal with the difference in spectral indices
+#version IV = Kate model included, ALPHA_AMP_values file is not different from III
+#version V =Reddened power law constrained fit parameters to bounds -3 to 3 for alpha 0 to inf
+
 df = np.genfromtxt('tdss_allmatches_crop_edit.dat',names=['ra','dec','z','pmf1','pmf2','pmf3'],dtype=(float,float,float,'|S15','|S15','|S15'))
-wav_range= [(1250,1350),(1700,1800),(1950,2200),(2650,2710),(2950,3700),(3950,4050)]
-pp = PdfPages('ContinuumNormalization_plots.pdf')
-fx=open('ALPHA_AMP_values.txt','w')
+wav_range= [(1280,1350),(1700,1800),(1950,2200),(2650,2710),(3010,3700),(3950,4050),(4140,4270)]
+pp = PdfPages('ContinuumNormalization_plots_V.pdf')
+pp1 = PdfPages('NormalizedSpectra_plots_V.pdf')
+fx=open('ALPHA_AMP_values_V.txt','w')
+fx1=open('Kate_ALPHA_AMP_values_V.txt','w')
 #for i in range(len(df['pmf1'])):
 for i in range(len(df)):
+#for i in range(25):
+
     print 'Kate_Sources/spec-'+df['pmf1'][i]+'.fits' 
     print 'Kate_Sources/spec-'+df['pmf2'][i]+'.fits' 
     print 'Kate_Sources/spec-'+df['pmf3'][i]+'.fits' 
@@ -250,23 +268,24 @@ for i in range(len(df)):
     data3 = fits.open('Kate_Sources/spec-'+df['pmf3'][i]+'.fits')[1].data
     wave1 = 10**data1.loglam.copy()
     flux1 = data1.flux.copy()
+    sigma1 = data1.ivar.copy()
+    mask1 = data1.and_mask.copy()
     weight1 =  (data1.ivar*(data1.and_mask == 0)).copy()
     wave2 = 10**data2.loglam.copy()
     flux2 = data2.flux.copy()
+    sigma2 = data2.ivar.copy()
+    mask2 = data2.and_mask.copy()
     weight2 =  (data2.ivar*(data2.and_mask == 0)).copy()
     wave3 = 10**data3.loglam.copy()
     flux3 = data3.flux.copy()
+    sigma3 = data3.ivar.copy()
+    mask3 = data3.and_mask.copy()
     weight3 =  (data3.ivar*(data3.and_mask == 0)).copy()
     print len(wave1),len(flux1),len(weight1)
     print weight1
     print data1.and_mask
-    #clean QSO
-    sn1= flux1*np.sqrt(weight1) ; sn2= flux2*np.sqrt(weight2); sn3= flux3*np.sqrt(weight3)
-    w1 = (weight1>0)&((sn1<-10)|(sn1>80)); w2 = (weight2>0)&((sn2<-10)|(sn2>80)) ; w3 = (weight3>0)&((sn3<-10)|(sn3>80))
-    print w1,w2,w3
-    weight1[w1] = 0; flux1[w1] = 0
-    weight2[w2] = 0; flux2[w2] = 0
-    weight3[w3] = 0; flux3[w3] = 0
+    
+        
     #de-redden the flux
     info = fits.open('Kate_Sources/spec-'+df['pmf1'][i]+'.fits')[2].data
     coords = SkyCoord(info['RA'],info['DEC'],unit='degree',frame='icrs')
@@ -275,26 +294,59 @@ for i in range(len(df)):
     dered_flux1 = dered_flux(3.1*eb_v,wave1,flux1)
     dered_flux2 = dered_flux(3.1*eb_v,wave2,flux2)
     dered_flux3 = dered_flux(3.1*eb_v,wave3,flux3)
+
+    #clean QSO
+    sn1= flux1*np.sqrt(weight1) ; sn2= flux2*np.sqrt(weight2); sn3= flux3*np.sqrt(weight3)
+    w1 = (weight1>0)&((sn1<-10)|(sn1>80)); w2 = (weight2>0)&((sn2<-10)|(sn2>80)) ; w3 = (weight3>0)&((sn3<-10)|(sn3>80))
+    print w1,w2,w3
+    weight1[w1] = 0; flux1[w1] = 0
+    weight2[w2] = 0; flux2[w2] = 0
+    weight3[w3] = 0; flux3[w3] = 0
+
+    
     # Change wavelengths to rest wavellegths
     rwave1 = wave1/(1.0+df['z'][i])
     rwave2 = wave2/(1.0+df['z'][i])
     rwave3 = wave3/(1.0+df['z'][i])
+    
+    #Clip all the spectra to same wavelength bounds Necessary to capture variation in alpha
+    wmin1,wmax1 = minmax(rwave1) 
+    wmin2,wmax2 = minmax(rwave2) 
+    wmin3,wmax3 = minmax(rwave3)
+    wlim1,wlim2 = max([wmin1,wmin2,wmin3]),min([wmax1,wmax2,wmax3])
+    l1 = np.where((rwave1 >= wlim1) & (rwave1 <= wlim2))[0]
+    l2 = np.where((rwave2 >= wlim1) & (rwave2 <= wlim2))[0]
+    l3 = np.where((rwave3 >= wlim1) & (rwave3 <= wlim2))[0]
+    crwave1 = rwave1[l1];cdered_flux1 = dered_flux1[l1];cweight1 = weight1[l1];csigma1 = sigma1[l1];cmask1 = mask1[l1]
+    crwave2 = rwave2[l2];cdered_flux2 = dered_flux2[l2];cweight2 = weight2[l2];csigma2 = sigma2[l2];cmask2 = mask2[l2]
+    crwave3 = rwave3[l3];cdered_flux3 = dered_flux3[l3];cweight3 = weight3[l3];csigma3 = sigma3[l3];cmask3 = mask3[l3]
+
     # Choose line free region
-    cwave1  = rwave1[contWave(rwave1)];cflux1 = flux1[contWave(rwave1)] ; cweight1 = weight1[contWave(rwave1)]
-    cwave2  = rwave2[contWave(rwave2)];cflux2 = flux2[contWave(rwave2)] ; cweight2 = weight2[contWave(rwave2)]
-    cwave3  = rwave3[contWave(rwave3)];cflux3 = flux3[contWave(rwave3)] ; cweight3 = weight3[contWave(rwave3)]
+    #cwave1  = rwave1[contWave(rwave1)];cflux1 = flux1[contWave(rwave1)] ; cweight1 = weight1[contWave(rwave1)]
+    #cwave2  = rwave2[contWave(rwave2)];cflux2 = flux2[contWave(rwave2)] ; cweight2 = weight2[contWave(rwave2)]
+    #cwave3  = rwave3[contWave(rwave3)];cflux3 = flux3[contWave(rwave3)] ; cweight3 = weight3[contWave(rwave3)]
+    
     #Fit powerlaw iterate and mask outliers
     iteration = 3
     for j in range(iteration):
         if j == 0:
-            AMP1, ALPHA1, CHISQ1, DOF1 = compute_alpha(rwave1, dered_flux1, weight1, waveRange(rwave1))
-            AMP2, ALPHA2, CHISQ2, DOF2 = compute_alpha(rwave2, dered_flux2, weight2, waveRange(rwave2))
-            AMP3, ALPHA3, CHISQ3, DOF3 = compute_alpha(rwave3, dered_flux3, weight3, waveRange(rwave3))
-            print>>fx,'{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}'.format(df['pmf1'][i],ALPHA1,ALPHA2,ALPHA3,AMP1,AMP2,AMP3)
+            AMP1, ALPHA1, CHISQ1, DOF1 = compute_alpha(crwave1, cdered_flux1, cweight1, waveRange(crwave1))
+            AMP2, ALPHA2, CHISQ2, DOF2 = compute_alpha(crwave2, cdered_flux2, cweight2, waveRange(crwave2))
+            AMP3, ALPHA3, CHISQ3, DOF3 = compute_alpha(crwave3, cdered_flux3, cweight3, waveRange(crwave3))
             print AMP1,ALPHA1
+            nwave1 = crwave1; nflux1=cdered_flux1;nweight1 = cweight1
+            nwave2 = crwave2; nflux2=cdered_flux2;nweight2 = cweight2
+            nwave3 = crwave3; nflux3=cdered_flux3;nweight3 = cweight3
             print 'iteration number',j+1#,popt1[0],popt1[1],popt1[2]
             print 'iteration 1 completed'
-           # continue
+            continue
+        else:
+            nwave1,nflux1,nweight1 = maskOutliers(nwave1,nflux1,nweight1,AMP1,ALPHA1)
+            AMP1, ALPHA1, CHISQ1, DOF1 = compute_alpha(nwave1, nflux1, nweight1, waveRange(nwave1))
+            nwave2,nflux2,nweight2 = maskOutliers(nwave2,nflux2,nweight2,AMP2,ALPHA2)
+            AMP2, ALPHA2, CHISQ2, DOF2 = compute_alpha(nwave2, nflux2, nweight2, waveRange(nwave2))
+            nwave3,nflux3,nweight3 = maskOutliers(nwave3,nflux3,nweight3,AMP3,ALPHA3)
+            AMP3, ALPHA3, CHISQ3, DOF3 = compute_alpha(nwave3, nflux3, nweight3, waveRange(nwave3))
            # print 'iteration number',j+1,popt1[0],popt1[1],popt1[2]
            # nwave1,nflux1,nweight1 = maskOutliers(cwave1,cflux1*1e15,cweight1,popt1)
            # popt1,pcov1 = fitPowerlaw(nwave1,nflux1,nweight1,popt1[0],popt1[1],popt1[2])
@@ -304,13 +356,19 @@ for i in range(len(df)):
            # popt3,pcov3 = fitPowerlaw(nwave3,nflux3,nweight3,popt3[0],popt3[1],popt3[2])
         
 
-
-
+    print>>fx,'{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}'.format(df['pmf1'][i],ALPHA1,ALPHA2,ALPHA3,AMP1,AMP2,AMP3)
+    #Try Kate's continuum normalization fit
+    kcwave1,kcflux1,kcfluxerr1,kmean_amp1,kmean_index1,kredco1,kwave1,kflux1=continuum_fit(wave1,flux1,weight1,df['z'][i])
+    kcwave2,kcflux2,kcfluxerr2,kmean_amp2,kmean_index2,kredco2,kwave2,kflux2=continuum_fit(wave2,flux2,weight2,df['z'][i])
+    kcwave3,kcflux3,kcfluxerr3,kmean_amp3,kmean_index3,kredco3,kwave3,kflux3=continuum_fit(wave3,flux3,weight3,df['z'][i])
+    print>>fx1,'{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}'.format(df['pmf1'][i],kmean_index1,kmean_index2,kmean_index3,kmean_amp1,kmean_amp2,kmean_amp3)
+    #
     #Plot for testing
     fig,(ax1,ax2,ax3)=plt.subplots(3,1,figsize=(15,8))
-    ax1.plot(rwave1,flux1,label=str(df['pmf1'][i]))
+    ax1.plot(crwave1,cdered_flux1,label=str(df['pmf1'][i]))
     #ax1.plot(cwave1,cflux1,'--')
-    ax1.plot(rwave1,myfunct(rwave1,AMP1,ALPHA1),':',lw=3)
+    ax1.plot(crwave1,myfunct(crwave1,AMP1,ALPHA1),':',color='red',lw=3,label='my model')
+    ax1.plot(kcwave1/(1.0+df['z'][i]),kcflux1,'--',color='cyan',lw=3,label='Kate model')
     #ax1.plot(rwave1,dered_flux1,'--')
     #ax1.plot(rwave1,weight1,':',label='weight')
     #ax1.plot(rwave1,data1.flux,label='Clipped')
@@ -320,25 +378,27 @@ for i in range(len(df)):
             ax1.axvspan(ll[0], ll[1], alpha=0.25, color='cyan')
             ax2.axvspan(ll[0], ll[1], alpha=0.25, color='cyan')
             ax3.axvspan(ll[0], ll[1], alpha=0.25, color='cyan')
-    ax2.plot(rwave2,flux2,label=str(df['pmf2'][i]))
+    ax2.plot(crwave2,cdered_flux2,label=str(df['pmf2'][i]))
     #ax2.plot(cwave2,cflux2,'--')
-    ax2.plot(rwave2,myfunct(rwave2,AMP2,ALPHA2),':',lw=3)
+    ax2.plot(crwave2,myfunct(crwave2,AMP2,ALPHA2),':',color='red',lw=3,label='my model')
+    ax2.plot(kcwave2/(1.0+df['z'][i]),kcflux2,'--',color='cyan',lw=3,label='Kate model')
     #ax2.plot(rwave2,dered_flux2,'--')
     #ax2.plot(rwave2,weight2,':',label='weight')
     #ax2.plot(rwave2,data2.flux,'--',label='Clipped')
     string2 = 'AMP: {0:4.3f}   ALPHA: {1:4.3f}   rCHISQ: {2:4.3f}'.format(AMP2,ALPHA2,CHISQ2/DOF2)
 
-    ax3.plot(rwave3,flux3,label=str(df['pmf3'][i]))
+    ax3.plot(crwave3,cdered_flux3,label=str(df['pmf3'][i]))
     #ax3.plot(cwave3,cflux3,'--')
-    ax3.plot(rwave3,myfunct(rwave3,AMP3,ALPHA3),':',lw=3)
+    ax3.plot(crwave3,myfunct(crwave3,AMP3,ALPHA3),':',color='red',lw=3,label='my model')
+    ax3.plot(kcwave3/(1.0+df['z'][i]),kcflux3,'--',color='cyan',lw=3,label='Kate model')
     #ax3.plot(rwave3,dered_flux3,'--')
     #ax3.plot(rwave3,weight3,':',label='weight')
     #ax3.plot(rwave3,data3.flux,'--',label='Clipped')
     string3 = 'AMP: {0:4.3f}   ALPHA: {1:4.3f}   rCHISQ: {2:4.3f}'.format(AMP3,ALPHA3,CHISQ3/DOF3)
 
-    ax1.set_xlim(np.min(rwave1),np.max(rwave1))
-    ax2.set_xlim(np.min(rwave1),np.max(rwave1))
-    ax3.set_xlim(np.min(rwave1),np.max(rwave1))
+    ax1.set_xlim(np.min(crwave1),np.max(crwave1))
+    ax2.set_xlim(np.min(crwave1),np.max(crwave1))
+    ax3.set_xlim(np.min(crwave1),np.max(crwave1))
     xlim=ax1.get_xlim()
     ylim1 = ax1.get_ylim()
     ylim2 = ax2.get_ylim()
@@ -353,5 +413,33 @@ for i in range(len(df)):
     fig.tight_layout()
     fig.savefig(pp,format='pdf')
     #plt.show()
+
+    #Save normalized flux for CIV region
+    nl1 = np.where((crwave1 >= 1410) & (crwave1 <= 1650))[0]
+    nl2 = np.where((crwave2 >= 1410) & (crwave2 <= 1650))[0]
+    nl3 = np.where((crwave3 >= 1410) & (crwave3 <= 1650))[0]
+    normwave1 = crwave1[nl1] ; normflux1 = cdered_flux1[nl1]/myfunct(normwave1,AMP1,ALPHA1) ; normsigma1 =  csigma1[nl1]/myfunct(normwave1,AMP1,ALPHA1) ;normmask1 = cmask1[nl1]   
+    normwave2 = crwave2[nl2] ; normflux2 = cdered_flux2[nl2]/myfunct(normwave2,AMP2,ALPHA2) ; normsigma2 =  csigma2[nl2]/myfunct(normwave2,AMP2,ALPHA2) ;normmask2 = cmask2[nl2]   
+    normwave3 = crwave3[nl3] ; normflux3 = cdered_flux3[nl3]/myfunct(normwave3,AMP3,ALPHA3) ; normsigma3 =  csigma3[nl3]/myfunct(normwave3,AMP3,ALPHA3) ; normmask3= cmask3[nl3]   
+    outname1 = 'Normspec_'+str(df['pmf1'][i])+'.txt' 
+    outname2 = 'Normspec_'+str(df['pmf2'][i])+'.txt' 
+    outname3 = 'Normspec_'+str(df['pmf3'][i])+'.txt'
+    np.savetxt(outname1,zip(normwave1,normflux1,normsigma1,normmask1), fmt='%10.5f')
+    np.savetxt(outname2,zip(normwave2,normflux2,normsigma2,normmask2), fmt='%10.5f')
+    np.savetxt(outname3,zip(normwave3,normflux3,normsigma3,normmask3), fmt='%10.5f')
+
+
+    fig1,aax=plt.subplots(figsize=(15,8))
+    aax.plot(normwave1,normflux1,color='black',alpha=0.4,label=str(df['pmf1'][i]))
+    aax.plot(normwave2,normflux2,color='red',alpha=0.4,label=str(df['pmf2'][i]))
+    aax.plot(normwave3,normflux3,color='blue',alpha=0.4,label=str(df['pmf3'][i]))
+    aax.axhline(1.0,ls='--',color='orange')
+    aax.set_xlabel(r'Rest Wavelength')
+    aax.set_ylabel(r'Normalized Flux')
+    aax.legend(loc=1)
+    fig1.tight_layout()
+    fig1.savefig(pp1,format='pdf')
 fx.close()
+fx1.close()
 pp.close()
+pp1.close()
