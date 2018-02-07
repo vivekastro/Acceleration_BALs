@@ -213,9 +213,9 @@ for i in range(len(df)):
         data1 = np.loadtxt('Norm_Spectra/Normspec_'+df['pmf1'][i]+'.txt')
         data2 = np.loadtxt('Norm_Spectra/Normspec_'+df['pmf2'][i]+'.txt')
         data3 = np.loadtxt('Norm_Spectra/Normspec_'+df['pmf3'][i]+'.txt')
-    wave1 = data1.T[0] ;    flux1 = data1.T[1] ; weight1 =  data1.T[2]
-    wave2 = data2.T[0] ;    flux2 = data2.T[1] ; weight2 =  data2.T[2]
-    wave3 = data3.T[0] ;    flux3 = data3.T[1] ; weight3 =  data3.T[2]
+    wave1 = data1.T[0] ;    flux1 = data1.T[1] ; weight1 =  data1.T[2]; mask1 = data1.T[3]
+    wave2 = data2.T[0] ;    flux2 = data2.T[1] ; weight2 =  data2.T[2]; mask2 = data2.T[3]
+    wave3 = data3.T[0] ;    flux3 = data3.T[1] ; weight3 =  data3.T[2]; mask3 = data3.T[3]
     print len(wave1),len(flux1),len(weight1)
     #print weight1
     #Initial Mask for broad absorptions
@@ -267,7 +267,7 @@ for i in range(len(df)):
 
 
 
-    fig,((ax1,ax2,ax3),(rax1,rax2,rax3))=plt.subplots(3,2,figsize=(15,8))
+    fig,((ax1,rax1),(ax2,rax2),(ax3,rax3))=plt.subplots(3,2,figsize=(20,10))
     ax1.plot(wave1,flux1,label=str(df['pmf1'][i]))
     ax1.plot(wave1,weight1,alpha=0.2)
     ax1.plot(wave1[weight1 > 0],flux1[weight1>0],'.')
@@ -300,9 +300,14 @@ for i in range(len(df)):
     ax3.set_xlim(np.min(wave1),np.max(wave1))
     xlim=ax1.get_xlim()
     ylim1 = ax1.get_ylim()
-    ylim2 = ax2.get_ylim()
-    ylim3 = ax3.get_ylim()
-    #ax1.text(xlim[0]+0.1*(xlim[1] - xlim[0]),ylim1[1] - 0.1*(ylim1[1] - ylim1[0]),string1gh)
+    ylim2 = ax1.get_ylim()
+    ylim3 = ax1.get_ylim()
+    ax1.set_ylim(0,4)
+    ax2.set_ylim(0,4)
+    ax3.set_ylim(0,4)
+    ax1.text(xlim[1]-0.15*(xlim[1] - xlim[0]),ylim1[0] + 0.1*(ylim1[1] - ylim1[0]),str(df['pmf1'][i]))
+    ax2.text(xlim[1]-0.15*(xlim[1] - xlim[0]),ylim1[0] + 0.1*(ylim1[1] - ylim1[0]),str(df['pmf2'][i]))
+    ax3.text(xlim[1]-0.15*(xlim[1] - xlim[0]),ylim1[0] + 0.1*(ylim1[1] - ylim1[0]),str(df['pmf3'][i]))
     #ax1.text(xlim[0]+0.1*(xlim[1] - xlim[0]),ylim1[1] - 0.2*(ylim1[1] - ylim1[0]),string12g)
     #ax2.text(xlim[0]+0.1*(xlim[1] - xlim[0]),ylim2[1] - 0.1*(ylim1[1] - ylim2[0]),string2gh)
     #ax2.text(xlim[0]+0.1*(xlim[1] - xlim[0]),ylim2[1] - 0.2*(ylim1[1] - ylim2[0]),string22g)
@@ -337,6 +342,57 @@ for i in range(len(df)):
         %(AMPa2g3, AMPb2g3, CENTERa2g3, CENTERb2g3, SIGMAa2g3, SIGMAb2g3),xy=(.95,.95), \
         xycoords='axes fraction',ha="right", va="top", \
         bbox=dict(boxstyle="round", fc='1'),fontsize=10)
+    #Save the spectra
+    filenamegh1 = 'EmissionLines_Norm_Spectra/NormSpec'+df['pmf1'][i]+'Em_gh.txt'
+    filenamegh2 = 'EmissionLines_Norm_Spectra/NormSpec'+df['pmf2'][i]+'Em_gh.txt'
+    filenamegh3 = 'EmissionLines_Norm_Spectra/NormSpec'+df['pmf3'][i]+'Em_gh.txt'
+    
+    filename2g1 = 'EmissionLines_Norm_Spectra/NormSpec'+df['pmf1'][i]+'Em_2g.txt'
+    filename2g2 = 'EmissionLines_Norm_Spectra/NormSpec'+df['pmf2'][i]+'Em_2g.txt'
+    filename2g3 = 'EmissionLines_Norm_Spectra/NormSpec'+df['pmf3'][i]+'Em_2g.txt'
+
+    # Residuals & Weights
+    resgh1 = flux1 / myGaussHermite(wave1,AMPgh1, CENTERgh1, SIGMAgh1, SKEWgh1, KURTgh1, SCALEgh1, ALPHAgh1)
+    resgh2 = flux2 / myGaussHermite(wave2,AMPgh2, CENTERgh2, SIGMAgh2, SKEWgh2, KURTgh2, SCALEgh2, ALPHAgh2)
+    resgh3 = flux3 / myGaussHermite(wave3,AMPgh3, CENTERgh3, SIGMAgh3, SKEWgh3, KURTgh3, SCALEgh3, ALPHAgh3)
+    
+    wresgh1 = weight1 / myGaussHermite(wave1,AMPgh1, CENTERgh1, SIGMAgh1, SKEWgh1, KURTgh1, SCALEgh1, ALPHAgh1)
+    wresgh2 = weight2 / myGaussHermite(wave2,AMPgh2, CENTERgh2, SIGMAgh2, SKEWgh2, KURTgh2, SCALEgh2, ALPHAgh2)
+    wresgh3 = weight3 / myGaussHermite(wave3,AMPgh3, CENTERgh3, SIGMAgh3, SKEWgh3, KURTgh3, SCALEgh3, ALPHAgh3)
+
+    res2g1 = flux1 / myDoubleGauss(wave1,AMPa2g1, CENTERa2g1, SIGMAa2g1, AMPb2g1, CENTERb2g1, SIGMAb2g1, SCALE2g1, ALPHA2g1 )
+    res2g2 = flux2 / myDoubleGauss(wave2,AMPa2g2, CENTERa2g2, SIGMAa2g2, AMPb2g2, CENTERb2g2, SIGMAb2g2, SCALE2g2, ALPHA2g2 )
+    res2g3 = flux3 / myDoubleGauss(wave3,AMPa2g3, CENTERa2g3, SIGMAa2g3, AMPb2g3, CENTERb2g3, SIGMAb2g3, SCALE2g3, ALPHA2g3 )
+
+    wres2g1 = weight1 / myDoubleGauss(wave1,AMPa2g1, CENTERa2g1, SIGMAa2g1, AMPb2g1, CENTERb2g1, SIGMAb2g1, SCALE2g1, ALPHA2g1 )
+    wres2g2 = weight2 / myDoubleGauss(wave2,AMPa2g2, CENTERa2g2, SIGMAa2g2, AMPb2g2, CENTERb2g2, SIGMAb2g2, SCALE2g2, ALPHA2g2 )
+    wres2g3 = weight3 / myDoubleGauss(wave3,AMPa2g3, CENTERa2g3, SIGMAa2g3, AMPb2g3, CENTERb2g3, SIGMAb2g3, SCALE2g3, ALPHA2g3 )
+
+    #Save Begins
+    np.savetxt(filenamegh1,zip(wave1,resgh1,wresgh1,mask1), fmt='%10.5f')
+    np.savetxt(filenamegh2,zip(wave2,resgh2,wresgh2,mask2), fmt='%10.5f')
+    np.savetxt(filenamegh3,zip(wave3,resgh3,wresgh3,mask3), fmt='%10.5f')
+
+    #Plot Begins
+    presgh1,pres2g1,=rax1.plot(wave1,resgh1,'k--',wave1,res2g1,'r-',alpha=0.7)
+    presgh2,pres2g2,=rax2.plot(wave2,resgh2,'k--',wave2,res2g2,'r-',alpha=0.7)
+    presgh3,pres2g3,=rax3.plot(wave3,resgh3,'k--',wave3,res2g3,'r-',alpha=0.7)
+
+    rax1.set_ylabel('Normalized Flux')
+    rax1.set_xlabel('Wavelength ($\AA$)')
+    rax1.legend([presgh1,pres2g1],['Gaus-Hermite','2-Gaus'],numpoints=4,prop={'size':8},loc='lower right')
+    rax2.set_ylabel('Normalized Flux')
+    rax2.set_xlabel('Wavelength ($\AA$)')
+    rax2.legend([presgh2,pres2g2],['Gaus-Hermite','2-Gaus'],numpoints=4,prop={'size':8},loc='lower right')
+    rax3.set_ylabel('Normalized Flux')
+    rax3.set_xlabel('Wavelength ($\AA$)')
+    rax3.legend([presgh3,pres2g3],['Gaus-Hermite','2-Gaus'],numpoints=4,prop={'size':8},loc='lower right')
+    rax1.axhline(1.0,ls=':',color='blue',alpha=0.5)
+    rax2.axhline(1.0,ls=':',color='blue',alpha=0.5)
+    rax3.axhline(1.0,ls=':',color='blue',alpha=0.5)
+    rax1.set_ylim(0,2)
+    rax2.set_ylim(0,2)
+    rax3.set_ylim(0,2)
     fig.tight_layout()
     fig.savefig(pp,format='pdf')
     #plt.show()
