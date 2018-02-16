@@ -1,0 +1,44 @@
+    ax1.legend([pgh1,p2g1,p2v1],['Gaus-Hermite','2-Gaus','Voigt'],loc=3)
+    ax1.annotate('Gauss-Hermite:\nAmp = %.2f\nCenter = %.2f\n$\sigma$ = %.2f\nH3 = %.2f\nH4 = %.2f\nrChi2 = %.3f' \
+        %(AMPgh1, CENTERgh1, SIGMAgh1, SKEWgh1, KURTgh1,(CHISQgh1/ DOFgh1)),xy=(.05,.95), \
+        xycoords='axes fraction',ha="left", va="top", \
+    bbox=dict(boxstyle="round", fc='1'),fontsize=10)
+    ax1.annotate('Double Gaussian:\nAmp$_1$ = %.2f\nAmp$_2$ = %.2f\nCenter$_1$ = %.2f\nCenter$_2$ = %.2f\n$\sigma_1$ = %.2f\n$\sigma_2$ = %.2f\nrChi2 = %.3f' \
+        %(AMPa2g1, AMPb2g1, CENTERa2g1, CENTERb2g1, SIGMAa2g1, SIGMAb2g1,(CHISQ2g1/ DOF2g1)),xy=(.95,.95), \
+        xycoords='axes fraction',ha="right", va="top", \
+        bbox=dict(boxstyle="round", fc='1'),fontsize=10)
+    ax1.annotate('Voigt:\nAmp$_1$ = %.2f\nCenter = %.2f\n$\sigma_l$ = %.2f\n$\sigma_g$ = %.2f\nrChi2 = %.3f' \
+        %(AMPv1, CENTERv1, SIGMALv1, SIGMAGv1,(CHISQv1/ DOFv1)),xy=(.35,.95), \
+        xycoords='axes fraction',ha="right", va="top", \
+        bbox=dict(boxstyle="round", fc='1'),fontsize=10)
+
+    
+    ax2.legend([pgh2,p2g2,p2v2],['Gaus-Hermite','2-Gaus','Voigt'],prop={'size':8},loc='center left')
+    ax2.annotate('Gauss-Hermite:\nAmp = %.2f\nCenter = %.2f\n$\sigma$ = %.2f\nH3 = %.2f\nH4 = %.2f\nrChi2 = %.3f'\
+        %(AMPgh2, CENTERgh2, SIGMAgh2, SKEWgh2, KURTgh2,(CHISQgh2/ DOFgh2)),xy=(.05,.95), \
+        xycoords='axes fraction',ha="left", va="top", \
+    bbox=dict(boxstyle="round", fc='1'),fontsize=10)
+    ax2.annotate('Double Gaussian:\nAmp$_1$ = %.2f\nAmp$_2$ = %.2f\nCenter$_1$ = %.2f\nCenter$_2$ = %.2f\n$\sigma_1$ = %.2f\n$\sigma_2$ = %.2f\nrChi2 = %.3f' \
+        %(AMPa2g2, AMPb2g2, CENTERa2g2, CENTERb2g2, SIGMAa2g2, SIGMAb2g2,(CHISQ2g2/ DOF2g2)),xy=(.95,.95), \
+        xycoords='axes fraction',ha="right", va="top", \
+        bbox=dict(boxstyle="round", fc='1'),fontsize=10)
+    ax2.annotate('Voigt:\nAmp$_1$ = %.2f\nCenter = %.2f\n$\sigma_l$ = %.2f\n$\sigma_g$ = %.2f\nrChi2 = %.3f' \
+        %(AMPv2, CENTERv2, SIGMALv2, SIGMAGv2,(CHISQv2/ DOFv2)),xy=(.35,.95), \
+        xycoords='axes fraction',ha="right", va="top", \
+        bbox=dict(boxstyle="round", fc='1'),fontsize=10)
+
+
+    ax3.legend([pgh3,p2g3,p2v3],['Gaus-Hermite','2-Gaus','Voigt'],prop={'size':8},loc='center left')
+    ax3.annotate('Gauss-Hermite:\nAmp = %.2f\nCenter = %.2f\n$\sigma$ = %.2f\nH3 = %.2f\nH4 = %.2f\nrChi2 = %.3f' \
+        %(AMPgh3, CENTERgh3, SIGMAgh3, SKEWgh3, KURTgh3,(CHISQgh3/ DOFgh3)),xy=(.05,.95), \
+        xycoords='axes fraction',ha="left", va="top", \
+    bbox=dict(boxstyle="round", fc='1'),fontsize=10)
+    ax3.annotate('Double Gaussian:\nAmp$_1$ = %.2f\nAmp$_2$ = %.2f\nCenter$_1$ = %.2f\nCenter$_2$ = %.2f\n$\sigma_1$ = %.2f\n$\sigma_2$ = %.2f\nrChi2 = %.3f' \
+        %(AMPa2g3, AMPb2g3, CENTERa2g3, CENTERb2g3, SIGMAa2g3, SIGMAb2g3,(CHISQ2g3/ DOF2g3)),xy=(.95,.95), \
+        xycoords='axes fraction',ha="right", va="top", \
+        bbox=dict(boxstyle="round", fc='1'),fontsize=10)
+    ax3.annotate('Voigt:\nAmp$_1$ = %.2f\nCenter = %.2f\n$\sigma_l$ = %.2f\n$\sigma_g$ = %.2f\nrChi2 = %.3f' \
+        %(AMPv3, CENTERv3, SIGMALv3, SIGMAGv3,(CHISQv3/ DOFv3)),xy=(.35,.95), \
+        xycoords='axes fraction',ha="right", va="top", \
+        bbox=dict(boxstyle="round", fc='1'),fontsize=10)
+

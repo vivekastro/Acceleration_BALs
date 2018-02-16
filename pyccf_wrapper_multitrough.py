@@ -44,13 +44,13 @@ def lam2vel(wavelength):
 ###################################################################################################
 ## Directories and list of files to use
 ###################################################################################################
-tdssdatadir = '../../varbal_data/all_textfiles/'
-bossdatadir = '../../varbal_data/all_textfiles/'
-sdssdatadir = '../../varbal_data/all_textfiles/'
+tdssdatadir = 'EmissionLines_Norm_Spectra/'
+bossdatadir = 'EmissionLines_Norm_Spectra/'
+sdssdatadir = 'EmissionLines_Norm_Spectra/'
 
 #bi_file = '/Users/cjg235/balqsos/varbal/measurements/BI_out_multitrough.dat'
-bi_file = '../../measurements/pyccf_tries_69kms_feb/trough_complexes.dat'
-datafile = '../../sample_selection/tdss_allmatches_crop_edit.dat' 
+bi_file = '/Users/vzm83/Acc_BALQSO/BALcomponents_output.txt' #'../../measurements/pyccf_tries_69kms_feb/trough_complexes.dat'
+datafile = '/Users/vzm83/Acc_BALQSO/tdss_allmatches_crop_edit.dat'#'../../sample_selection/tdss_allmatches_crop_edit.dat' 
 
 #Read in file containing all plate-mjd-fibers of pairs of spectra I want to use 
 targ_obs = list()
@@ -66,17 +66,18 @@ print 'Number of different targets: ', num_obj
 
 target_observations = [[] for _ in range(num_obj)]
 print target_observations
-exit()
+#exit()
 
 #bi_info = np.genfromtxt(bi_file, dtype = None, names = ['files', 'num_troughs', 'BI', 'BI_err', 'BIround', 'Vmax', 'Verr', 'Vmaxround', 'Vmin', 'Verr2', 'Vminround', 'Chi2'], skiprows = 1)
 #num_bi = np.size(bi_info['num_troughs'])
-bi_info = np.genfromtxt(bi_file, dtype = None, names = ['speci', 'files', 'Vmin', 'Vmax', 'numt', 'num_troughs', 'highpad', 'lowpad', 'ew', 'ew_err'], skiprows = 1)
+bi_info = np.genfromtxt(bi_file, dtype = None, names = ['speci', 'files', 'Vmin', 'Vmax', 'numt', 'num_troughs', 'highpad', 'lowpad', 'ew', 'ew_err'])
 num_bi = np.size(bi_info['num_troughs'])
-x = np.genfromtxt('../../data_preparation/line_fits.dat', dtype = None, names = ['numobj', 'spec1', 'spec2', 'spec3', 'linefit'], skiprows = 1)
+x = np.genfromtxt('linefits.txt', dtype = None, names = ['numobj', 'spec1', 'spec2', 'spec3', 'linefit'])
 linefit = x['linefit']
-               
+num_obj=119
 for i in xrange(0, num_obj):
     values = targ_obs[i].split()
+    print values
     ra = values[0]
     dec = values[1]
     redshift = values[2]
@@ -84,11 +85,11 @@ for i in xrange(0, num_obj):
     valuesize = np.size(valuesn)
     line_fit = linefit[i]
     if line_fit == 'gauss-hermite':
-        file_suffix = '-gh-norm.txt'
+        file_suffix = '_cEm_gh.txt'
     elif line_fit == 'voigt':
-        file_suffix = '-voigt-norm.txt'
+        file_suffix = '_cEm_v.txt'
     else:
-        file_suffix = '-2g-norm.txt'
+        file_suffix = '_cEm_2g.txt'
     
     #print valuesize, valuesn
     for j in xrange(0, valuesize):
@@ -109,10 +110,10 @@ for i in xrange(0, num_obj):
             #print 'tdss'
             filename = tdssdatadir+'spec-'+valuesn[j]+file_suffix   
             survey = 'TDSS'
-
-        spec_filename = 'spec-'+valuesn[j]+file_suffix
+        
+        spec_filename = 'NormSpec_'+valuesn[j]+file_suffix
         match = np.where(bi_info['files'] == spec_filename)[0]
-
+        print 'Match' ,match, spec_filename
         if np.size(match) == 0:
             obs.filename = filename
             obs.spec_name = spec_filename
@@ -154,20 +155,23 @@ for i in xrange(0, num_obj):   #num_obj
     target = target_observations[i]
     numrep = np.size(target)
     n_troughs = target[0].num_troughs[0]
-    if n_troughs > 0: 
+    if n_troughs > 0:
+        print n_troughs
         for z in xrange(0, n_troughs):
             suffix = str(z)
             for j in xrange(0, numrep-1):
                 k = 0
                 while (j+k) < (numrep-1):
                     k+=1
-
-                    print target[j].filename
-                    spec1 = 'fivecol/'+(target[j].filename).split('/')[7]+'.crop.5col_'+suffix
-                    spec2 = 'fivecol/'+(target[j+k].filename).split('/')[7]+'.crop.5col_'+suffix
-                    prefix1 = ((target[j].filename).split('/')[7]).split('-')[1]+'-'+ ((target[j].filename).split('/')[7]).split('-')[2]+'-'+ ((target[j].filename).split('/')[7]).split('-')[3]
-                    prefix2 = ((target[j+k].filename).split('/')[7]).split('-')[1]+'-'+ ((target[j+k].filename).split('/')[7]).split('-')[2]+'-'+ ((target[j+k].filename).split('/')[7]).split('-')[3]
+                    print k
+                    print 'Targetfilename',target[j].filename
+                    spec1 = 'fivecol/'+(target[j].filename).split('/')[1]+'.crop.5col_'+suffix
+                    spec2 = 'fivecol/'+(target[j+k].filename).split('/')[1]+'.crop.5col_'+suffix
+                    print spec1,spec2
+                    prefix1 = ((target[j].filename).split('/')[1]).split('-')[1]+'-'+ ((target[j].filename).split('/')[1]).split('-')[2]+'-'+ ((target[j].filename).split('/')[1]).split('-')[3]
+                    prefix2 = ((target[j+k].filename).split('/')[1]).split('-')[1]+'-'+ ((target[j+k].filename).split('/')[1]).split('-')[2]+'-'+ ((target[j+k].filename).split('/')[1]).split('-')[3]
                     prefix = prefix1+'-vs-'+prefix2+'-'+suffix
+                    print prefix
                     print 'i = ', i, ' Cross correlating: ', prefix
                     deltamjd = abs(int(target[j+k].mjd) - int(target[j].mjd))
                     deltamjd_rest = (deltamjd/(1+float(target[j].redshift)))/365.
@@ -176,15 +180,15 @@ for i in xrange(0, num_obj):   #num_obj
                     nsim = 10000
                     wave1, flux1, err1 = np.loadtxt(spec1, unpack = True, usecols = [0, 1, 2])
                     wave2, flux2, err2 = np.loadtxt(spec2, unpack = True, usecols = [0, 1, 2])
-                    #print z
-                    #print target[j].v_min
+                    print z
+                    print target[j].v_min
                     vmin = target[j].v_min[z]
                     vmax = target[j].v_max[z] 
                 
                     #Run the CCF on the two spectra
                     #Run the CCF from -2000 km/s to +2000 km/s and at 69 km/s interpolation
-                    tlag_peak, status_peak, tlag_centroid, status_centroid, ccf_pack, max_r, status_r = myccf.peakcent(-wave1, flux1, -wave2, flux2, -2.001, 2.001, 0.069, imode = 0, sigmode = 0.2)
-                    tlags_peak, tlags_centroid, nsuccess_peak, nfail_peak, nsuccess_centroid, nfail_centroid, max_rvals, nfail_maxrvals = myccf.xcor_mc(-wave1, flux1, abs(err1), -wave2, flux2, abs(err2), -2.001, 2.001, 0.069, nsim = nsim, mcmode=2, sigmode = 0.2)
+                    tlag_peak, status_peak, tlag_centroid, status_centroid, ccf_pack, max_r, status_r,peak_r = myccf.peakcent(wave1, flux1, wave2, flux2, -2.001, 2.001, 0.069, imode = 0, sigmode = 0.2)
+                    tlags_peak, tlags_centroid, nsuccess_peak, nfail_peak, nsuccess_centroid, nfail_centroid, max_rvals, nfail_maxrvals,pvale = myccf.xcor_mc(wave1, flux1, abs(err1), wave2, flux2, abs(err2), -2.001, 2.001, 0.069, nsim = nsim, mcmode=2, sigmode = 0.2)
                     #plt.plot(ccf_pack[1], ccf_pack[0])
                     #plt.show()
                     #plt.hist(tlags_centroid, color = 'b')
@@ -265,6 +269,7 @@ for i in xrange(0, num_obj):   #num_obj
                     #Make plots of the spectra, CCF, CCCD, and CCPD, etc 
                     spec1w, spec1f, spec1er = np.loadtxt(spec1, unpack = True, usecols = [0, 1, 2])
                     spec2w, spec2f, spec2er = np.loadtxt(spec2, unpack = True, usecols = [0, 1, 2])
+                    spec1w = -spec1w ; spec2w = - spec2w
                     spec2wn = spec2w-shift
 
                     fig = plt.figure()
@@ -322,5 +327,6 @@ for i in xrange(0, num_obj):   #num_obj
                     plt.savefig('ccf_plots/ccfplot_'+prefix+'.png', format = 'png', bbox_inches = 'tight')
                     
                     plt.close(fig)
+                    #ttt = raw_input('After plot')
             
 pdf_pages.close()

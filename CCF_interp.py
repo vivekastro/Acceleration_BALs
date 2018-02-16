@@ -82,15 +82,23 @@ def xcor(t1, y1, t2, y2, tlagmin1, tlagmax1, tunit, imode=0):
     npts2 = []    #New
     ccf12 = []  # interpolate 2
     ccf21 = []  # interpolate 1
-
+    print 'T1', t1
+    print '--------------------'
+    print 'T2', t2
     tlagmin = -tlagmax1
     tlagmax = -tlagmin1
     # frist interpolate 2
     tau = tlagmin + 0.0
     while tau < tlagmax+safe:
+        #print 'tau',tau
         t2new = t1 - tau
+        #print 'T2new ',t2new
+        #vivek = raw_input()
+        print np.min(t2),np.max(t2)
         selin = np.where((t2new>=np.min(t2))&(t2new<=np.max(t2)), True, False)
+        #print 'selin',selin
         knot = np.sum(selin)  # number of datapoints used
+        #print 'knot ',knot
         if knot>0:
             y2new = np.interp(t2new[selin], t2, y2)
             
@@ -191,7 +199,7 @@ def xcor(t1, y1, t2, y2, tlagmin1, tlagmax1, tunit, imode=0):
         ccf = ccf21 + 0.0
     else:
         ccf = ccf12 + 0.0
-    
+    print 'CCF Final',ccf,-taulist,npts 
     return ccf, -taulist, npts
 
 
@@ -231,7 +239,7 @@ def peakcent(t1, y1, t2, y2, tlagmin, tlagmax, tunit, thres=0.8, siglevel=0.95, 
     alpha = 1.0 - siglevel  # probability threshold to reject: no correlation hypothesis
     
     ccf_pack = xcor(t1, y1, t2, y2, tlagmin, tlagmax, tunit, imode)
-    
+    print sigmode 
     # ccf peaks --- excluding all with r < 0.2 instead of using p-value test. 
     if sigmode > 0:
         #print 'Using minimum r coefficient instead of significance test.'        
@@ -350,7 +358,7 @@ def peakcent(t1, y1, t2, y2, tlagmin, tlagmax, tunit, thres=0.8, siglevel=0.95, 
                 tlag_centroid = -9999.0
                 status_centroid = 0
 
-    #print tlag_peak, status_peak, tlag_centroid, status_centroid, max_rval, status_rval
+    print tlag_peak, status_peak, tlag_centroid, status_centroid, max_rval, status_rval
     return tlag_peak, status_peak, tlag_centroid, status_centroid, ccf_pack, max_rval, status_rval, peak_pvalue
 
 
